@@ -1,3 +1,7 @@
+![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-blue)
+![Version](https://img.shields.io/badge/version-1.2.0-green)
+![Platform](https://img.shields.io/badge/platform-Arduino%20Nano-red)
+
 # Shroud of Turing
 
 **Turing Machine Inspired Random Sequencer with Musical Quantization & Sequence Manipulation Tools**  
