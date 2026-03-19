@@ -150,7 +150,7 @@ shroud-of-turing/
 ├── firmware/
 │   ├── ShroudOfTuring_v1_2_0.ino         ← Main firmware (flash this)
 │   └── shared_libraries/
-│       ├── README_SHARED_LIBRARIES.md     ← ⚠️ Read before touching
+│       ├── README_SHARED_LIBRARIES.md     ← Read before touching
 │       ├── CalibrationMode.h
 │       ├── CalibrationMode.cpp
 │       ├── EEPROMHandling.h
