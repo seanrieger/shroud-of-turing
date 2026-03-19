@@ -12,7 +12,7 @@
 
 ## What Is This?
 
-The [Shroud of Turing](https://flatsixmodular.com/shroudofturing/) is a Eurorack firmware for the FlatSix Modular [Nocturne Alchemy Platform](https://flatsixmodular.com/#s-be36d878-3ec2-4386-bef0-e5a17a883df7/), inspired by [Tom Whitwell's Music Thing Modular Turing Machine](https://github.com/TomWhitwell/TuringMachine). It transforms the module into a generative, performance-focused, shift register sequencer with additional tools to help you evolve your generated phrases. 
+The [Shroud of Turing](https://flatsixmodular.com/shroudofturing/) is a Eurorack firmware for the FlatSix Modular [Nocturne Alchemy Platform](https://flatsixmodular.com/#s-be36d878-3ec2-4386-bef0-e5a17a883df7/), inspired by [Tom Whitwell's Music Thing Modular Turing Machine](https://github.com/TomWhitwell/TuringMachine). It transforms the Ardunio Nano-based module into a generative, performance-focused, shift register sequencer with additional tools to help you evolve your generated phrases. 
 
 At its heart is a 16-bit shift register that generates evolving pseudo-random CV sequences — turn the probability knob to sweep between locked, repeating patterns and ever-changing generative melodies, or find the sweet spot in between where sequences gradually mutate over time. 
 
