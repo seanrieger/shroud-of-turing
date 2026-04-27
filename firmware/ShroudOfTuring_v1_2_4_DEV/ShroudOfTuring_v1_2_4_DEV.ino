@@ -1,5 +1,5 @@
 // =============================================================================
-// Shroud of Turing v1.2.0
+// Shroud of Turing v1.2.4
 // Turing Machine MKII-Style Random Sequencer with Musical Quantization
 // For the Nocturne Alchemy Platform (Arduino Nano)
 //
@@ -148,6 +148,13 @@ const int SCALE_SLOT_G_ADDR = 112;
 const int SCALE_SLOT_A_ADDR = 114;
 const int SCALE_SLOT_B_ADDR = 116;
 
+// *** Save State Slot (v1.2.4) ***
+// Slot 1 (C#): addresses 118-129, 12 bytes
+// Addresses 130-177: reserved for future slots 2-5
+const int STATE_SLOT_1_ADDR = 118;
+const int STATE_SLOT_END   = 129;
+const uint16_t STATE_SIGNATURE = 0xB1B1;
+
 // CRITICAL: Protected address ranges (DO NOT WRITE!)
 const int PROTECTED_CALIBRATION_START = 0;
 const int PROTECTED_CALIBRATION_END = 103;
@@ -156,6 +163,11 @@ const int PROTECTED_FLAG_END = 201;
 
 unsigned long octaveDownPressTime = 0;
 bool octaveDownLongHoldActive = false;
+
+// *** Save/Load State variables (v1.2.4) ***
+bool potPickupRequired = false;   // true after a state load until pot moves
+int  potBaselineOnLoad = 0;       // filtered pot reading captured at load time
+int  savedPotValue = 512;         // pot ADC value stored in the state slot
 
 // *** EEPROM Safety Functions ***
 
@@ -198,6 +210,145 @@ bool safeEEPROMRead(int address, uint16_t* value) {
     byte lowByte = EEPROM.read(address);
     byte highByte = EEPROM.read(address + 1);
     *value = (highByte << 8) | lowByte;
+    return true;
+}
+
+// *** State slot address safety (v1.2.4) ***
+// Separate guard for state slots (118-129) so scale safety is unaffected.
+bool isStateAddressSafe(int address) {
+    if (address < STATE_SLOT_1_ADDR || address > STATE_SLOT_END) return false;
+    if (address >= PROTECTED_FLAG_START && address <= PROTECTED_FLAG_END) return false;
+    return true;
+}
+
+// saveStateToSlot() — persists full module state to one EEPROM slot.
+// slotAddress: first byte of a 12-byte block (pass STATE_SLOT_1_ADDR for slot 1).
+void saveStateToSlot(int slotAddress) {
+    // Validate the entire 12-byte range before touching EEPROM
+    for (int i = 0; i < 12; i++) {
+        if (!isStateAddressSafe(slotAddress + i)) {
+            #if DEBUG_MODE
+                Serial.println(F("!!! STATE SAVE FAILED - UNSAFE ADDR"));
+            #endif
+            return;
+        }
+    }
+    int addr = slotAddress;
+    uint16_t signature  = STATE_SIGNATURE;
+    uint16_t reg        = shiftRegister;
+    uint8_t  stepLen    = (uint8_t)currentStepLength;
+    uint8_t  pad        = 0;                 // reserved (was stepPosition)
+    uint8_t  volRange   = (uint8_t)voltageRange;
+    // Capture current filtered pot value at save time
+    int rawPot = analogRead(potentiometerPin);
+    uint16_t potSnap    = (uint16_t)rawPot;
+    uint16_t scalePacked = packScale();
+    uint8_t  reserved   = 0;
+
+    EEPROM.put(addr,      signature);    // 2 bytes  (addr 0-1)
+    EEPROM.put(addr + 2,  reg);          // 2 bytes  (addr 2-3)
+    EEPROM.put(addr + 4,  stepLen);      // 1 byte   (addr 4)
+    EEPROM.put(addr + 5,  pad);          // 1 byte   (addr 5)
+    EEPROM.put(addr + 6,  volRange);     // 1 byte   (addr 6)
+    EEPROM.put(addr + 7,  reserved);     // 1 byte   (addr 7)
+    EEPROM.put(addr + 8,  potSnap);      // 2 bytes  (addr 8-9)
+    EEPROM.put(addr + 10, scalePacked);  // 2 bytes  (addr 10-11)
+    // Total: 12 bytes
+
+    #if DEBUG_MODE
+        Serial.print(F("STATE SAVE @"));
+        Serial.print(slotAddress);
+        Serial.print(F(" reg=0x"));
+        Serial.print(shiftRegister, HEX);
+        Serial.print(F(" len="));
+        Serial.print(currentStepLength);
+        Serial.print(F(" range="));
+        Serial.print(voltageRange);
+        Serial.print(F(" pot="));
+        Serial.print(potSnap);
+        Serial.print(F(" scale=0x"));
+        Serial.println(scalePacked, HEX);
+    #endif
+}
+
+// loadStateFromSlot() — restores full module state from one EEPROM slot.
+// Returns true if a valid state was found and loaded, false if slot is empty.
+bool loadStateFromSlot(int slotAddress) {
+    for (int i = 0; i < 12; i++) {
+        if (!isStateAddressSafe(slotAddress + i)) {
+            #if DEBUG_MODE
+                Serial.println(F("!!! STATE LOAD FAILED - UNSAFE ADDR"));
+            #endif
+            return false;
+        }
+    }
+    int addr = slotAddress;
+    uint16_t signature;
+    EEPROM.get(addr, signature);
+    if (signature != STATE_SIGNATURE) {
+        #if DEBUG_MODE
+            Serial.print(F("STATE LOAD @"));
+            Serial.print(slotAddress);
+            Serial.println(F(" - EMPTY"));
+        #endif
+        return false;
+    }
+    uint16_t reg;
+    uint8_t  stepLen, pad, volRange, reserved;
+    uint16_t potSnap, scalePacked;
+
+    EEPROM.get(addr + 2,  reg);
+    EEPROM.get(addr + 4,  stepLen);
+    EEPROM.get(addr + 5,  pad);
+    EEPROM.get(addr + 6,  volRange);
+    EEPROM.get(addr + 7,  reserved);
+    EEPROM.get(addr + 8,  potSnap);
+    EEPROM.get(addr + 10, scalePacked);
+
+    // Validate loaded values before applying
+    bool validStepLen = (stepLen == 3 || stepLen == 4 || stepLen == 5 ||
+                         stepLen == 6 || stepLen == 8 || stepLen == 12 || stepLen == 16);
+    bool validRange   = (volRange >= 1 && volRange <= 4);
+
+    if (!validStepLen || !validRange) {
+        #if DEBUG_MODE
+            Serial.println(F("!!! STATE LOAD - CORRUPT DATA"));
+        #endif
+        return false;
+    }
+
+    // Apply state
+    shiftRegister      = reg;
+    currentStepLength  = stepLen;
+    voltageRange       = volRange;
+    stepCounter        = 0;       // always start from step 0 on load
+    unpackScale(scalePacked);
+
+    // Reset lock/double state — let the pot re-establish on next updateProbability()
+    patternLocked = false;
+    patternDouble = false;
+
+    // Capture baseline for pot pickup
+    savedPotValue      = (int)potSnap;
+    potBaselineOnLoad  = analogRead(potentiometerPin);  // physical position right now
+    potPickupRequired  = true;
+
+    #if DEBUG_MODE
+        Serial.print(F("STATE LOAD @"));
+        Serial.print(slotAddress);
+        Serial.print(F(" reg=0x"));
+        Serial.print(shiftRegister, HEX);
+        Serial.print(F(" len="));
+        Serial.print(currentStepLength);
+        Serial.print(F(" range="));
+        Serial.print(voltageRange);
+        Serial.print(F(" savedPot="));
+        Serial.print(savedPotValue);
+        Serial.print(F(" physPot="));
+        Serial.print(potBaselineOnLoad);
+        Serial.print(F(" scale=0x"));
+        Serial.println(scalePacked, HEX);
+    #endif
     return true;
 }
 
@@ -473,6 +624,20 @@ void updateProbability() {
     static int lastPotValue = 512;
     potValue = (lastPotValue * 3 + potValue) / 4;
     lastPotValue = potValue;
+
+    // *** Pot pickup after state load (v1.2.4) ***
+    // After loadStateFromSlot(), ignore the physical pot until it has moved
+    // more than 30 ADC counts from its position at load time. Once it moves,
+    // release pickup and return to normal live control.
+    if (potPickupRequired) {
+        if (abs(potValue - potBaselineOnLoad) > 30) {
+            potPickupRequired = false;
+            // Fall through and use live potValue immediately
+        } else {
+            // Substitute the saved pot value so probability stays where it was
+            potValue = savedPotValue;
+        }
+    }
     PotMode oldMode = currentPotMode;
     if (potValue <= POT_DOUBLE_MAX) {
         currentPotMode = POT_MODE_DOUBLE;
@@ -674,13 +839,21 @@ void handleButtonMatrix() {
                                 case 11: currentStepLength = 16; break;
                             }
                         } else if (octaveDownLongHoldActive) {
-                            if (noteIndex == 2 || noteIndex == 4 || noteIndex == 5 ||
+                            // Save: white key scale slots OR C# = full state slot 1
+                            if (noteIndex == 1) {
+                                saveStateToSlot(STATE_SLOT_1_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 2 || noteIndex == 4 || noteIndex == 5 ||
                                 noteIndex == 7 || noteIndex == 9 || noteIndex == 11) {
                                 saveScaleToSlot(noteIndex);
                                 modeChangeOccurred = true;
                             }
                         } else if (octaveUpLongHoldActive) {
-                            if (noteIndex == 2 || noteIndex == 4 || noteIndex == 5 ||
+                            // Load: white key scale slots OR C# = full state slot 1
+                            if (noteIndex == 1) {
+                                loadStateFromSlot(STATE_SLOT_1_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 2 || noteIndex == 4 || noteIndex == 5 ||
                                 noteIndex == 7 || noteIndex == 9 || noteIndex == 11) {
                                 loadScaleFromSlot(noteIndex);
                                 modeChangeOccurred = true;
