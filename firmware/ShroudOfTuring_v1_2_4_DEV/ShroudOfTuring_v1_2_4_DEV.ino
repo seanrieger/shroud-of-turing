@@ -148,11 +148,19 @@ const int SCALE_SLOT_G_ADDR = 112;
 const int SCALE_SLOT_A_ADDR = 114;
 const int SCALE_SLOT_B_ADDR = 116;
 
-// *** Save State Slot (v1.2.4) ***
-// Slot 1 (C#): addresses 118-129, 12 bytes
-// Addresses 130-177: reserved for future slots 2-5
+// *** Save State Slots (v1.2.4) ***
+// 5 slots x 12 bytes each, addresses 118-177
+// Slot 1 (C#): 118-129
+// Slot 2 (D#): 130-141
+// Slot 3 (F#): 142-153
+// Slot 4 (G#): 154-165
+// Slot 5 (A#): 166-177
 const int STATE_SLOT_1_ADDR = 118;
-const int STATE_SLOT_END   = 129;
+const int STATE_SLOT_2_ADDR = 130;
+const int STATE_SLOT_3_ADDR = 142;
+const int STATE_SLOT_4_ADDR = 154;
+const int STATE_SLOT_5_ADDR = 166;
+const int STATE_SLOT_END    = 177;
 const uint16_t STATE_SIGNATURE = 0xB1B1;
 
 // CRITICAL: Protected address ranges (DO NOT WRITE!)
@@ -839,9 +847,21 @@ void handleButtonMatrix() {
                                 case 11: currentStepLength = 16; break;
                             }
                         } else if (octaveDownLongHoldActive) {
-                            // Save: white key scale slots OR C# = full state slot 1
+                            // Save: white key scale slots OR black keys = state slots
                             if (noteIndex == 1) {
                                 saveStateToSlot(STATE_SLOT_1_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 3) {
+                                saveStateToSlot(STATE_SLOT_2_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 6) {
+                                saveStateToSlot(STATE_SLOT_3_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 8) {
+                                saveStateToSlot(STATE_SLOT_4_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 10) {
+                                saveStateToSlot(STATE_SLOT_5_ADDR);
                                 modeChangeOccurred = true;
                             } else if (noteIndex == 2 || noteIndex == 4 || noteIndex == 5 ||
                                 noteIndex == 7 || noteIndex == 9 || noteIndex == 11) {
@@ -849,9 +869,21 @@ void handleButtonMatrix() {
                                 modeChangeOccurred = true;
                             }
                         } else if (octaveUpLongHoldActive) {
-                            // Load: white key scale slots OR C# = full state slot 1
+                            // Load: white key scale slots OR black keys = state slots
                             if (noteIndex == 1) {
                                 loadStateFromSlot(STATE_SLOT_1_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 3) {
+                                loadStateFromSlot(STATE_SLOT_2_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 6) {
+                                loadStateFromSlot(STATE_SLOT_3_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 8) {
+                                loadStateFromSlot(STATE_SLOT_4_ADDR);
+                                modeChangeOccurred = true;
+                            } else if (noteIndex == 10) {
+                                loadStateFromSlot(STATE_SLOT_5_ADDR);
                                 modeChangeOccurred = true;
                             } else if (noteIndex == 2 || noteIndex == 4 || noteIndex == 5 ||
                                 noteIndex == 7 || noteIndex == 9 || noteIndex == 11) {
