@@ -102,8 +102,13 @@ bool lastClockState = LOW;
 bool resetPending = false;
 bool clearBitButtonHeld = false;
 bool setBitButtonHeld = false;
-bool rotateBackwardPending = false;
-bool rotateForwardPending = false;
+
+// *** Note array rotation (v1.2.4) ***
+// Pre-computed DAC output values for locked/double modes.
+// Rotation operates on this array directly — shift register is untouched.
+uint16_t noteArray[16];       // 32 bytes — DAC values for each step
+int rotationOffset = 0;       // current rotation position (0 to stepLength-1)
+bool noteArrayValid = false;  // must rebuild before use
 
 // *** Quantization variables ***
 bool scaleNotes[12] = {false};
@@ -245,7 +250,7 @@ void saveStateToSlot(int slotAddress) {
     uint16_t signature  = STATE_SIGNATURE;
     uint16_t reg        = shiftRegister;
     uint8_t  stepLen    = (uint8_t)currentStepLength;
-    uint8_t  pad        = 0;                 // reserved (was stepPosition)
+    uint8_t  pad        = (uint8_t)rotationOffset;  // rotation offset (0-15)
     uint8_t  volRange   = (uint8_t)voltageRange;
     // Capture current filtered pot value at save time
     int rawPot = analogRead(potentiometerPin);
@@ -330,11 +335,15 @@ bool loadStateFromSlot(int slotAddress) {
     currentStepLength  = stepLen;
     voltageRange       = volRange;
     stepCounter        = 0;       // always start from step 0 on load
-    unpackScale(scalePacked);
+    unpackScale(scalePacked);     // also calls rebuildNoteArray()
 
     // Reset lock/double state — let the pot re-establish on next updateProbability()
     patternLocked = false;
     patternDouble = false;
+    noteArrayValid = false;
+
+    // Restore rotation offset (saved in pad byte, valid range 0-15)
+    rotationOffset = (pad < 16) ? (int)pad : 0;
 
     // Capture baseline for pot pickup
     savedPotValue      = (int)potSnap;
@@ -369,6 +378,7 @@ void addNoteToScale(int noteIndex) {
     if (!scaleNotes[chromaticNote]) {
         scaleNotes[chromaticNote] = true;
         scaleNoteCount++;
+        rebuildNoteArray();
         #if DEBUG_MODE
             Serial.print(F("+ Note "));
             Serial.print(chromaticNote);
@@ -384,6 +394,7 @@ void clearScale() {
         scaleNotes[i] = false;
     }
     scaleNoteCount = 0;
+    rebuildNoteArray();
     #if DEBUG_MODE
         Serial.println(F("Scale cleared"));
     #endif
@@ -432,6 +443,7 @@ void unpackScale(uint16_t packed) {
         scaleNotes[i] = (packed >> i) & 1;
         if (scaleNotes[i]) scaleNoteCount++;
     }
+    rebuildNoteArray();
 }
 
 int getScaleSlotAddress(int noteIndex) {
@@ -627,6 +639,72 @@ float bitsToVoltage(byte bits) {
     return quantizeVoltage(bits);
 }
 
+// rebuildNoteArray() — pre-computes DAC values for every step in the current
+// locked or double-locked pattern. Must be called whenever the shift register
+// pattern, scale, step length, voltage range, or lock state changes.
+// Resets rotationOffset to 0 since the underlying pattern has changed.
+void rebuildNoteArray() {
+    if (!patternLocked && !patternDouble) {
+        noteArrayValid = false;
+        return;
+    }
+    unsigned int src = patternLocked ? lockedPattern : doublePattern;
+    int effectiveLength = patternDouble ? currentStepLength * 2 : currentStepLength;
+    if (effectiveLength > 16) effectiveLength = 16;
+
+    // Simulate stepping through the pattern to extract output bits per step,
+    // mirroring the exact same bit extraction logic used in advanceTuringMachine().
+    unsigned int reg = src;
+    for (int i = 0; i < effectiveLength; i++) {
+        unsigned int pattern = reg & ((1 << currentStepLength) - 1);
+        byte outputBits;
+        if (currentStepLength >= 8) {
+            outputBits = (pattern >> (currentStepLength - 8)) & 0xFF;
+        } else {
+            switch (currentStepLength) {
+                case 3: { byte p = pattern & 0x07; outputBits = (p << 5) | (p << 2) | (p >> 1); break; }
+                case 4: { byte p = pattern & 0x0F; outputBits = (p << 4) | p; break; }
+                case 5: { byte p = pattern & 0x1F; outputBits = (p << 3) | (p >> 2); break; }
+                case 6: { byte p = pattern & 0x3F; outputBits = (p << 2) | (p >> 4); break; }
+                default: outputBits = pattern & 0xFF; break;
+            }
+        }
+        float voltage = bitsToVoltage(outputBits);
+        noteArray[i] = (uint16_t)(voltage * (4095.0 / 4.93));
+        // Advance the register one step (feedback bit = MSB, no flip = locked)
+        bool feedbackBit = (reg >> (currentStepLength - 1)) & 1;
+        if (patternDouble) feedbackBit = !feedbackBit;  // double mode inverts
+        reg = (reg << 1) | feedbackBit;
+    }
+    rotationOffset = 0;
+    noteArrayValid = true;
+    #if DEBUG_MODE
+        Serial.print(F("NOTE ARRAY rebuilt len="));
+        Serial.print(effectiveLength);
+        Serial.print(F(" steps: "));
+        for (int i = 0; i < effectiveLength; i++) {
+            Serial.print(noteArray[i]);
+            Serial.print(' ');
+        }
+        Serial.println();
+    #endif
+}
+
+// applyRotation() — immediately shifts the rotation offset by one step.
+// direction: +1 = forward, -1 = backward.
+// Only active when a stable pattern exists (locked or double).
+void applyRotation(int direction) {
+    if (!noteArrayValid) return;
+    if (!patternLocked && !patternDouble) return;
+    int effectiveLength = patternDouble ? currentStepLength * 2 : currentStepLength;
+    if (effectiveLength > 16) effectiveLength = 16;
+    rotationOffset = (rotationOffset + direction + effectiveLength) % effectiveLength;
+    #if DEBUG_MODE
+        Serial.print(F("ROTATE offset="));
+        Serial.println(rotationOffset);
+    #endif
+}
+
 void updateProbability() {
     int potValue = analogRead(potentiometerPin);
     static int lastPotValue = 512;
@@ -665,6 +743,7 @@ void updateProbability() {
             if (!patternDouble) {
                 doublePattern = shiftRegister;
                 patternDouble = true;
+                rebuildNoteArray();
             }
             break;
         case POT_MODE_VARIABLE_LOW:
@@ -697,11 +776,12 @@ void updateProbability() {
             if (!patternLocked) {
                 lockedPattern = shiftRegister;
                 patternLocked = true;
+                rebuildNoteArray();
             }
             break;
     }
-    if (oldMode == POT_MODE_LOCKED && currentPotMode != POT_MODE_LOCKED) patternLocked = false;
-    if (oldMode == POT_MODE_DOUBLE && currentPotMode != POT_MODE_DOUBLE) patternDouble = false;
+    if (oldMode == POT_MODE_LOCKED && currentPotMode != POT_MODE_LOCKED) { patternLocked = false; noteArrayValid = false; }
+    if (oldMode == POT_MODE_DOUBLE && currentPotMode != POT_MODE_DOUBLE) { patternDouble = false; noteArrayValid = false; }
 }
 
 void advanceTuringMachine() {
@@ -711,45 +791,74 @@ void advanceTuringMachine() {
         } else if (patternDouble) {
             shiftRegister = doublePattern;
         }
-        stepCounter = 0;
+        stepCounter = 1;  // advance past reset note so next clock plays step 2,
+                          // not a double-hit on step 1
         resetPending = false;
-        unsigned int pattern = shiftRegister & ((1 << currentStepLength) - 1);
-        byte outputBits;
-        if (currentStepLength >= 8) {
-            outputBits = (pattern >> (currentStepLength - 8)) & 0xFF;
+        // Output the rotated step 0 — rotation offset is preserved so reset
+        // lands on the user's chosen downbeat, not the raw pattern start.
+        if (noteArrayValid) {
+            dac.setVoltage(noteArray[rotationOffset % 16], false);
         } else {
-            switch (currentStepLength) {
-                case 3: { byte p = pattern & 0x07; outputBits = (p << 5) | (p << 2) | (p >> 1); break; }
-                case 4: { byte p = pattern & 0x0F; outputBits = (p << 4) | p; break; }
-                case 5: { byte p = pattern & 0x1F; outputBits = (p << 3) | (p >> 2); break; }
-                case 6: { byte p = pattern & 0x3F; outputBits = (p << 2) | (p >> 4); break; }
-                default: outputBits = pattern & 0xFF; break;
+            unsigned int pattern = shiftRegister & ((1 << currentStepLength) - 1);
+            byte outputBits;
+            if (currentStepLength >= 8) {
+                outputBits = (pattern >> (currentStepLength - 8)) & 0xFF;
+            } else {
+                switch (currentStepLength) {
+                    case 3: { byte p = pattern & 0x07; outputBits = (p << 5) | (p << 2) | (p >> 1); break; }
+                    case 4: { byte p = pattern & 0x0F; outputBits = (p << 4) | p; break; }
+                    case 5: { byte p = pattern & 0x1F; outputBits = (p << 3) | (p >> 2); break; }
+                    case 6: { byte p = pattern & 0x3F; outputBits = (p << 2) | (p >> 4); break; }
+                    default: outputBits = pattern & 0xFF; break;
+                }
             }
+            float voltage = bitsToVoltage(outputBits);
+            dac.setVoltage((int)(voltage * (4095 / 4.93)), false);
         }
-        float voltage = bitsToVoltage(outputBits);
-        dac.setVoltage((int)(voltage * (4095 / 4.93)), false);
         return;
     }
-    if (rotateBackwardPending) {
-        unsigned int mask = (1 << currentStepLength) - 1;
-        unsigned int pattern = shiftRegister & mask;
-        bool lsb = pattern & 1;
-        pattern = (pattern >> 1) | (lsb << (currentStepLength - 1));
-        shiftRegister = (shiftRegister & ~mask) | pattern;
-        if (patternLocked) lockedPattern = shiftRegister;
-        else if (patternDouble) doublePattern = shiftRegister;
-        rotateBackwardPending = false;
+
+    // *** Locked / Double mode: output from pre-computed note array ***
+    if ((patternLocked || patternDouble) && noteArrayValid) {
+        int effectiveLength = patternDouble ? currentStepLength * 2 : currentStepLength;
+        if (effectiveLength > 16) effectiveLength = 16;
+        int outputIndex = (stepCounter + rotationOffset) % effectiveLength;
+
+        // Set/clear bit still edits the underlying shift register and
+        // triggers a note array rebuild so the change is heard immediately.
+        if (clearBitButtonHeld) {
+            int bitPosition = currentStepLength - 1 - stepCounter;
+            shiftRegister &= ~(1 << bitPosition);
+            if (patternLocked) lockedPattern = shiftRegister;
+            else if (patternDouble) doublePattern = shiftRegister;
+            rebuildNoteArray();
+            rotationOffset = 0;  // reset after edit so user hears change from step 0
+        }
+        if (setBitButtonHeld) {
+            int bitPosition = currentStepLength - 1 - stepCounter;
+            shiftRegister |= (1 << bitPosition);
+            if (patternLocked) lockedPattern = shiftRegister;
+            else if (patternDouble) doublePattern = shiftRegister;
+            rebuildNoteArray();
+            rotationOffset = 0;
+        }
+
+        dac.setVoltage(noteArray[outputIndex], false);
+
+        #if DEBUG_MODE
+            Serial.print(F("S:")); Serial.print(stepCounter);
+            Serial.print(F(" R:")); Serial.print(rotationOffset);
+            Serial.print(F(" I:")); Serial.print(outputIndex);
+            Serial.print(F(" DAC:")); Serial.print(noteArray[outputIndex]);
+            Serial.println(F(" [LOCKED]"));
+        #endif
+
+        stepCounter++;
+        if (stepCounter >= effectiveLength) stepCounter = 0;
+        return;
     }
-    if (rotateForwardPending) {
-        unsigned int mask = (1 << currentStepLength) - 1;
-        unsigned int pattern = shiftRegister & mask;
-        bool msb = (pattern >> (currentStepLength - 1)) & 1;
-        pattern = ((pattern << 1) | msb) & mask;
-        shiftRegister = (shiftRegister & ~mask) | pattern;
-        if (patternLocked) lockedPattern = shiftRegister;
-        else if (patternDouble) doublePattern = shiftRegister;
-        rotateForwardPending = false;
-    }
+
+    // *** Random / Variable mode: standard bit-based output ***
     unsigned int pattern = shiftRegister & ((1 << currentStepLength) - 1);
     byte outputBits;
     if (currentStepLength >= 8) {
@@ -841,9 +950,9 @@ void handleButtonMatrix() {
                                 case 4:  currentStepLength = 5; break;
                                 case 5:  currentStepLength = 6; break;
                                 case 7:  currentStepLength = 8; break;
-                                case 8:  rotateBackwardPending = true; break;
+                                case 8:  applyRotation(-1); break;
                                 case 9:  currentStepLength = 12; break;
-                                case 10: rotateForwardPending = true; break;
+                                case 10: applyRotation(+1); break;
                                 case 11: currentStepLength = 16; break;
                             }
                         } else if (octaveDownLongHoldActive) {
@@ -924,7 +1033,7 @@ void handleOctaveButtons() {
         if (octaveUpLongHoldActive) {
             octaveUpLongHoldActive = false;
         } else if (currentMillis - octaveUpPressTime < shiftModeActivationTime && !modeChangeOccurred) {
-            if (voltageRange < 4) voltageRange++;
+            if (voltageRange < 4) { voltageRange++; rebuildNoteArray(); }
         }
         octaveUpPressTime = 0;
     }
@@ -939,7 +1048,7 @@ void handleOctaveButtons() {
             octaveDownLongHoldActive = false;
         } else if (currentMillis - octaveDownPressTime < shiftModeActivationTime &&
                    !modeChangeOccurred && !octaveUpLongHoldActive) {
-            if (voltageRange > 1) voltageRange--;
+            if (voltageRange > 1) { voltageRange--; rebuildNoteArray(); }
         }
         octaveDownPressTime = 0;
     }
