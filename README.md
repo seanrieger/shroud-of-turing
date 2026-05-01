@@ -228,7 +228,8 @@ The shared platform libraries (`CalibrationMode`, `EEPROMHandling`) are included
 **Original Turing Machine concept:** Tom Whitwell / Music Thing Modular  
 **Nocturne Alchemy Platform:** FlatSix Modular  
 **Firmware development:** FlatSix Modular  
-**Reference implementation:** Ornament & Crime Hemisphere Suite (Jason Justian)
+**Reference implementation:** Ornament & Crime Hemisphere Suite (Jason Justian)  
+**State Save / Recall concept:** Beni Rose
 
 ---
 
