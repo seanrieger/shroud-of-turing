@@ -1,4 +1,4 @@
-# Shroud of Turing v1.2.0 — Quick Reference
+# Shroud of Turing v1.2.4 — Quick Reference
 
 ---
 
@@ -46,17 +46,21 @@ Hold button during power-on (2-second window):
 | SHIFT + | Action                                        |
 | ------- | --------------------------------------------- |
 | C       | Sequence length → 3 steps                     |
-| C#      | Reset to first note (LOCKED/DOUBLE only)      |
+| C#      | Reset to chosen downbeat (LOCKED/DOUBLE only) |
 | D       | Sequence length → 4 steps                     |
 | D#      | Clear current bit (hold to continue clearing) |
 | E       | Sequence length → 5 steps                     |
 | F       | Sequence length → 6 steps                     |
 | F#      | Set current bit (hold to continue setting)    |
 | G       | Sequence length → 8 steps (default)           |
-| G#      | Rotate pattern backward one step              |
+| G#      | Rotate sequence backward one step             |
 | A       | Sequence length → 12 steps                    |
-| A#      | Rotate pattern forward one step               |
+| A#      | Rotate sequence forward one step              |
 | B       | Sequence length → 16 steps                    |
+
+> **Rotation** shifts which note plays first without changing the underlying pattern.
+> Only active in LOCKED or DOUBLE mode. Immediate — no clock pulse required.
+> Rotation is preserved when you save state and restored when you load it.
 
 ---
 
@@ -69,6 +73,33 @@ Hold button during power-on (2-second window):
 | Long hold Octave Up (150ms+), then press C     | Clear current scale        |
 
 Slots: **D** = 1, **E** = 2, **F** = 3, **G** = 4, **A** = 5, **B** = 6
+
+---
+
+## State Save / Recall
+
+Saves and restores the complete module state: shift register pattern, sequence
+length, voltage range, scale, pot value, and rotation offset.
+
+| Action                                          | Result                      |
+| ----------------------------------------------- | --------------------------- |
+| Long hold Octave Down (150ms+), then press C#–A# | Save full state to slot     |
+| Long hold Octave Up (150ms+), then press C#–A#  | Load full state from slot   |
+
+| Black Key | Slot |
+| --------- | ---- |
+| C#        | 1    |
+| D#        | 2    |
+| F#        | 3    |
+| G#        | 4    |
+| A#        | 5    |
+
+> **After a load**, the pot is ignored until it moves ~30 ADC counts from its
+> position at load time. This prevents the physical pot position from
+> immediately overwriting the loaded probability value.
+>
+> State slots are independent of scale slots — loading a state overwrites the
+> active scale in RAM but never touches the saved scale slots in EEPROM.
 
 ---
 
@@ -99,4 +130,4 @@ Slots: **D** = 1, **E** = 2, **F** = 3, **G** = 4, **A** = 5, **B** = 6
 
 ---
 
-*Shroud of Turing v1.2.0 — FlatSix Modular*
+*Shroud of Turing v1.2.4 — FlatSix Modular*
