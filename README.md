@@ -1,11 +1,11 @@
 ![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-blue)
-![Version](https://img.shields.io/badge/version-1.2.4-green)
+![Version](https://img.shields.io/badge/version-1.2.5-green)
 ![Platform](https://img.shields.io/badge/platform-Arduino%20Nano-red)
 
 # Shroud of Turing
 
 **Turing Machine Inspired Random Sequencer with Musical Quantization & Sequence Manipulation Tools**  
-*Firmware v1.2.4 for the Nocturne Alchemy Platform*  
+*Firmware v1.2.5 for the Nocturne Alchemy Platform*  
 *FlatSix Modular*
 
 ---
@@ -29,8 +29,9 @@ Once you've found a pattern you love, the Shroud gives you hands-on tools to sha
 - Variable sequence length: 3, 4, 5, 6, 8, 12, or 16 steps
 - Live scale building: press notes on the button matrix to define a quantization scale
 - 6 persistent scale save/recall slots (stored in EEPROM across power cycles)
-- **5 full state save/recall slots** — snapshot the complete module state (pattern, scale, rotation, range) to any black key and restore it instantly
+- **5 full state save/recall slots** — snapshot the complete module state (pattern, scale, rotation, range, slew) to any black key and restore it instantly
 - 1–4 octave voltage range (0–4V, calibrated 1V/octave)
+- **Slew/portamento** — hold SHIFT and adjust the pot to dial in glide between notes; slew is saved and restored with full state
 - **Musical sequence rotation** — shift your locked pattern's starting note immediately, preserving the rotation across save/load and reset
 - Pattern manipulation: reset to chosen downbeat, rotate, clear bits, set bits
 - CV Keyboard mode: play notes directly from the button matrix with portamento
@@ -58,7 +59,7 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 ### Installation
 
 1. Download or clone this repository
-2. Open `firmware/ShroudOfTuring_v1_2_4_DEV/ShroudOfTuring_v1_2_4_DEV.ino` in the Arduino IDE
+2. Open `firmware/ShroudOfTuring_v1_2_5_DEV/ShroudOfTuring_v1_2_5_DEV.ino` in the Arduino IDE
 3. Select **Board:** Arduino Nano, **Processor:** ATmega328P (Old Bootloader)
 4. Ensure `DEBUG_MODE` is set to `false` (line ~50) for production use
 5. Upload to your module
@@ -79,6 +80,8 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 
 ### Potentiometer
 
+**Normal operation:**
+
 ```
 7 o'clock ────────────── 12 o'clock ────────────── 5 o'clock
  DOUBLE        SLIP          RANDOM        SLIP        LOCKED
@@ -92,6 +95,17 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 | 12 o'clock   | RANDOM | Total chaos — 100% probability of change        |
 | 1–4 o'clock  | SLIP   | Pattern slowly evolves                          |
 | 5 o'clock    | LOCKED | Perfect repeating loop — 0% change              |
+
+**While SHIFT is held — pot controls slew/portamento:**
+
+```
+7 o'clock ──────────────────────────────────────── 5 o'clock
+  No slew                                         Max slew
+ (instant)                                      (long glide)
+```
+
+Pickup protection is active in both directions — the value won't jump when
+you press or release SHIFT. Slew is saved and restored with full state.
 
 ### Buttons
 
@@ -117,6 +131,7 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 | SHIFT + A   | Set sequence length to 12 steps                    |
 | SHIFT + A#  | Rotate sequence forward one step                   |
 | SHIFT + B   | Set sequence length to 16 steps                    |
+| SHIFT + Pot | Adjust slew/portamento amount                      |
 
 ### Scale Save / Recall
 
@@ -128,7 +143,11 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 
 ### State Save / Recall
 
-Saves and restores the complete module state: pattern, scale, sequence length, voltage range, pot value, and rotation offset.
+Saves and restores the complete module state: pattern, scale, sequence length, voltage range, rotation offset, probability, and slew.
+
+> Save captures what you're **hearing**, not the physical pot position. If pickup
+> is active at save time, the effective probability is saved rather than the
+> knob's physical location. Slew is always saved exactly as set.
 
 | Action                                | Result                    |
 | ------------------------------------- | ------------------------- |
@@ -143,7 +162,9 @@ Saves and restores the complete module state: pattern, scale, sequence length, v
 | G#        | 4    |
 | A#        | 5    |
 
-> After a load, the pot is ignored until it physically moves — preventing the current pot position from immediately overwriting the loaded probability value.
+> After a load, the pot is ignored for probability until it moves deliberately
+> (~30 ADC counts) from its position at load time. Slew is restored directly
+> with no pickup needed — it stays frozen until you next hold SHIFT.
 
 ---
 
@@ -173,15 +194,19 @@ shroud-of-turing/
 ├── CHANGELOG.md                           ← Version history
 │
 ├── firmware/
-│   ├── ShroudOfTuring_v1_2_4_DEV/
-│   │   ├── ShroudOfTuring_v1_2_4_DEV.ino  ← Main firmware (flash this)
+│   ├── ShroudOfTuring_v1_2_5_DEV/
+│   │   ├── ShroudOfTuring_v1_2_5_DEV.ino  ← Main firmware (flash this)
 │   │   ├── CalibrationMode.h
 │   │   ├── CalibrationMode.cpp
 │   │   ├── EEPROMHandling.h
-│   │   ├── EEPROMHandling.cpp
-│   │   ├── handlePlaybackMode.h
-│   │   └── handlePlaybackMode.cpp
-│   ├── ShroudOfTuring_v1_2_0.ino         ← Previous stable release
+│   │   └── EEPROMHandling.cpp
+│   ├── ShroudOfTuring_v1_2_4_DEV/
+│   │   ├── ShroudOfTuring_v1_2_4_DEV.ino  ← Previous release
+│   │   ├── CalibrationMode.h
+│   │   ├── CalibrationMode.cpp
+│   │   ├── EEPROMHandling.h
+│   │   └── EEPROMHandling.cpp
+│   ├── ShroudOfTuring_v1_2_0.ino         ← Original v1.2.0 release
 │   └── shared_libraries/
 │       ├── README_SHARED_LIBRARIES.md     ← Read before touching
 │       ├── CalibrationMode.h
@@ -243,5 +268,5 @@ Please do not open GitHub issues for questions about building the hardware — t
 
 ---
 
-*Shroud of Turing v1.2.4 — FlatSix Modular — 2026*  
+*Shroud of Turing v1.2.5 — FlatSix Modular — 2026*  
 *Inspired by Tom Whitwell's Turing Machine MKII*
