@@ -1,4 +1,4 @@
-# Shroud of Turing v1.2.5 — Quick Reference
+# Shroud of Turing v1.2.6 — Quick Reference
 
 ---
 
@@ -52,7 +52,8 @@ Pot switches to **slew/portamento** control. Probability is frozen.
 
 | Button                    | Action                               |
 | ------------------------- | ------------------------------------ |
-| Any note button           | Add note to quantization scale       |
+| Any note button (short press)  | Add note to quantization scale       |
+| Any note button (hold 800ms)   | Remove that note from scale          |
 | Octave Up (short press)   | Increase voltage range (1→2→3→4 oct) |
 | Octave Down (short press) | Decrease voltage range (4→3→2→1 oct) |
 
@@ -155,4 +156,4 @@ length, voltage range, scale, rotation offset, probability, and slew.
 
 ---
 
-*Shroud of Turing v1.2.5 — FlatSix Modular*
+*Shroud of Turing v1.2.6 — FlatSix Modular*

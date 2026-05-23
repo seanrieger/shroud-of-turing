@@ -1,4 +1,4 @@
-# Shroud of Turing v1.2.4 — Developer Guide
+# Shroud of Turing v1.2.6 — Developer Guide
 
 ---
 
@@ -10,7 +10,7 @@ This guide is for developers who want to understand, modify, or extend the Shrou
 
 ## Architecture
 
-The firmware is a single `.ino` file with shared platform libraries. All logic lives in `ShroudOfTuring_v1_2_4_DEV.ino`. The shared libraries are compiled alongside it but must not be modified.
+The firmware is a single `.ino` file with shared platform libraries. All logic lives in `ShroudOfTuring_v1_2_6_DEV.ino`. The shared libraries are compiled alongside it but must not be modified.
 
 ### Code Organization
 
@@ -88,11 +88,17 @@ Scans the 3×4 matrix on every loop. Handles four distinct button contexts:
 - **SHIFT mode** — sequence length, reset, clear/set bits, rotation (via `applyRotation()`)
 - **Octave Down long-hold** — scale save (white keys) or full state save (black keys)
 - **Octave Up long-hold** — scale load (white keys), full state load (black keys), or clear scale (C)
-- **Normal press** — add note to quantization scale
+- **Normal press/release** — add or remove notes from the quantization scale
+
+Note add and remove both fire on **release** (not press) to allow long-hold detection. Press records `noteHoldStartTime`; release checks elapsed time against `NOTE_REMOVE_HOLD_TIME` (800ms). Short release → `addNoteToScale()`; long release → `removeNoteFromScale()`. All modifier-key actions (SHIFT, octave long-hold) still fire on press as before.
 
 ### `saveStateToSlot(int slotAddress)` / `loadStateFromSlot(int slotAddress)`
 
 Save and restore the complete module state to a 12-byte EEPROM slot. Saved fields: signature (0xB1B1), shift register, step length, rotation offset, voltage range, reserved byte, pot ADC snapshot, packed scale. Address safety is validated via `isStateAddressSafe()` before any EEPROM access. Load validates the signature and field ranges before applying, resets `stepCounter` to 0, calls `unpackScale()` (which triggers `rebuildNoteArray()`), and arms pot pickup.
+
+### `removeNoteFromScale(int noteIndex)`
+
+Removes a chromatic note from the active scale and decrements `scaleNoteCount`. Calls `rebuildNoteArray()` so the change is immediately reflected in locked/double mode output. Silent no-op if the note is not in the scale. Mirror of `addNoteToScale()`.
 
 ### `safeEEPROMWrite()` / `safeEEPROMRead()`
 
@@ -124,6 +130,7 @@ const int POT_SWEETSPOT_HIGH_END   = 950;
 // Timing
 const unsigned long debounceDelayButtons    = 50;   // ms
 const unsigned long shiftModeActivationTime = 150;  // ms hold for SHIFT/long-hold
+const unsigned long NOTE_REMOVE_HOLD_TIME   = 800;  // ms hold to remove a scale note
 ```
 
 ---
@@ -250,4 +257,4 @@ Derivative firmware must be released under CC BY-NC-SA 4.0 with attribution to F
 
 ---
 
-*Shroud of Turing v1.2.4 — FlatSix Modular*
+*Shroud of Turing v1.2.6 — FlatSix Modular*

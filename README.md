@@ -1,11 +1,11 @@
 ![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-blue)
-![Version](https://img.shields.io/badge/version-1.2.5-green)
+![Version](https://img.shields.io/badge/version-1.2.6-green)
 ![Platform](https://img.shields.io/badge/platform-Arduino%20Nano-red)
 
 # Shroud of Turing
 
 **Turing Machine Inspired Random Sequencer with Musical Quantization & Sequence Manipulation Tools**  
-*Firmware v1.2.5 for the Nocturne Alchemy Platform*  
+*Firmware v1.2.6 for the Nocturne Alchemy Platform*  
 *FlatSix Modular*
 
 ---
@@ -27,7 +27,7 @@ Once you've found a pattern you love, the Shroud gives you hands-on tools to sha
 
 - 16-bit shift register with probability control — from locked loop to total randomness
 - Variable sequence length: 3, 4, 5, 6, 8, 12, or 16 steps
-- Live scale building: press notes on the button matrix to define a quantization scale
+- Live scale building: press notes on the button matrix to define a quantization scale; long-hold any note (800ms) to remove it individually
 - 6 persistent scale save/recall slots (stored in EEPROM across power cycles)
 - **5 full state save/recall slots** — snapshot the complete module state (pattern, scale, rotation, range, slew) to any black key and restore it instantly
 - 1–4 octave voltage range (0–4V, calibrated 1V/octave)
@@ -59,7 +59,7 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 ### Installation
 
 1. Download or clone this repository
-2. Open `firmware/ShroudOfTuring_v1_2_5_DEV/ShroudOfTuring_v1_2_5_DEV.ino` in the Arduino IDE
+2. Open `firmware/ShroudOfTuring_v1_2_6_DEV/ShroudOfTuring_v1_2_6_DEV.ino` in the Arduino IDE
 3. Select **Board:** Arduino Nano, **Processor:** ATmega328P (Old Bootloader)
 4. Ensure `DEBUG_MODE` is set to `false` (line ~50) for production use
 5. Upload to your module
@@ -112,6 +112,7 @@ you press or release SHIFT. Slew is saved and restored with full state.
 | Action              | Result                                   |
 | ------------------- | ---------------------------------------- |
 | Press a note button | Add note to quantization scale           |
+| Long-hold a note button (800ms) | Remove that note from scale  |
 | Octave Up           | Increase voltage range (1→2→3→4 octaves) |
 | Octave Down         | Decrease voltage range (4→3→2→1 octaves) |
 
@@ -194,14 +195,14 @@ shroud-of-turing/
 ├── CHANGELOG.md                           ← Version history
 │
 ├── firmware/
-│   ├── ShroudOfTuring_v1_2_5_DEV/
-│   │   ├── ShroudOfTuring_v1_2_5_DEV.ino  ← Main firmware (flash this)
+│   ├── ShroudOfTuring_v1_2_6_DEV/
+│   │   ├── ShroudOfTuring_v1_2_6_DEV.ino  ← Main firmware (flash this)
 │   │   ├── CalibrationMode.h
 │   │   ├── CalibrationMode.cpp
 │   │   ├── EEPROMHandling.h
 │   │   └── EEPROMHandling.cpp
-│   ├── ShroudOfTuring_v1_2_4_DEV/
-│   │   ├── ShroudOfTuring_v1_2_4_DEV.ino  ← Previous release
+│   ├── ShroudOfTuring_v1_2_5_DEV/
+│   │   ├── ShroudOfTuring_v1_2_5_DEV.ino  ← Previous release
 │   │   ├── CalibrationMode.h
 │   │   ├── CalibrationMode.cpp
 │   │   ├── EEPROMHandling.h
@@ -268,5 +269,5 @@ Please do not open GitHub issues for questions about building the hardware — t
 
 ---
 
-*Shroud of Turing v1.2.5 — FlatSix Modular — 2026*  
+*Shroud of Turing v1.2.6 — FlatSix Modular — 2026*  
 *Inspired by Tom Whitwell's Turing Machine MKII*
