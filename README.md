@@ -29,7 +29,7 @@ Once you've found a pattern you love, the Shroud gives you hands-on tools to sha
 - Variable sequence length: 3, 4, 5, 6, 8, 12, or 16 steps
 - Live scale building: press notes on the button matrix to define a quantization scale; long-hold any note (800ms) to remove it individually
 - 6 persistent scale save/recall slots (stored in EEPROM across power cycles)
-- **5 full state save/recall slots** — snapshot the complete module state (pattern, scale, rotation, range, slew) to any black key and restore it instantly
+- **5 full state save/recall slots** — snapshot the complete module state (pattern, scale, rotation, range, window, slew) to any black key and restore it instantly
 - 1–4 octave voltage range (0–4V, calibrated 1V/octave)
 - **Voltage window shift** — hold SHIFT and press Octave Up/Down to slide the voltage window up or down in 1V steps; a 1-octave window at offset 2 produces C2–C3 rather than C0–C1; window position is saved and restored with full state
 - **Slew/portamento** — hold SHIFT and adjust the pot to dial in glide between notes; slew is saved and restored with full state
@@ -206,6 +206,18 @@ shroud-of-turing/
 │   │   └── EEPROMHandling.cpp
 │   ├── ShroudOfTuring_v1_2_6_DEV/
 │   │   ├── ShroudOfTuring_v1_2_6_DEV.ino  ← Previous release
+│   │   ├── CalibrationMode.h
+│   │   ├── CalibrationMode.cpp
+│   │   ├── EEPROMHandling.h
+│   │   └── EEPROMHandling.cpp
+│   ├── ShroudOfTuring_v1_2_5_DEV/
+│   │   ├── ShroudOfTuring_v1_2_5_DEV.ino
+│   │   ├── CalibrationMode.h
+│   │   ├── CalibrationMode.cpp
+│   │   ├── EEPROMHandling.h
+│   │   └── EEPROMHandling.cpp
+│   ├── ShroudOfTuring_v1_2_4_DEV/
+│   │   ├── ShroudOfTuring_v1_2_4_DEV.ino
 │   │   ├── CalibrationMode.h
 │   │   ├── CalibrationMode.cpp
 │   │   ├── EEPROMHandling.h
