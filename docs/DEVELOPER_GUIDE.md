@@ -1,4 +1,4 @@
-# Shroud of Turing v1.2.6 — Developer Guide
+# Shroud of Turing v1.2.7 — Developer Guide
 
 ---
 
@@ -10,7 +10,7 @@ This guide is for developers who want to understand, modify, or extend the Shrou
 
 ## Architecture
 
-The firmware is a single `.ino` file with shared platform libraries. All logic lives in `ShroudOfTuring_v1_2_6_DEV.ino`. The shared libraries are compiled alongside it but must not be modified.
+The firmware is a single `.ino` file with shared platform libraries. All logic lives in `ShroudOfTuring_v1_2_7_DEV.ino`. The shared libraries are compiled alongside it but must not be modified.
 
 ### Code Organization
 
@@ -79,7 +79,7 @@ Reads the potentiometer (0–1023), applies a 75/25 moving average filter, and s
 
 ### `quantizeVoltage(byte cvBits)`
 
-Converts an 8-bit shift register value to a calibrated output voltage. If a scale is active (`scaleNoteCount > 0`), snaps to the nearest scale note using `findNearestScaleNote()`. If no scale is active, outputs unquantized voltage proportional to `voltageRange`.
+Converts an 8-bit shift register value to a calibrated output voltage. The output is constrained to the current voltage window defined by `windowOffset` and `voltageRange`. If a scale is active (`scaleNoteCount > 0`), snaps to the nearest scale note using `findNearestScaleNote()` and offsets the semitone lookup into `calibrationValues[]` by `windowOffset * 12` — so a window at offset 2 produces notes from C2 upward rather than C0. If no scale is active, outputs unquantized voltage as `windowOffset + (normalized * voltageRange)`.
 
 ### `handleButtonMatrix()`
 
@@ -92,9 +92,13 @@ Scans the 3×4 matrix on every loop. Handles four distinct button contexts:
 
 Note add and remove both fire on **release** (not press) to allow long-hold detection. Press records `noteHoldStartTime`; release checks elapsed time against `NOTE_REMOVE_HOLD_TIME` (800ms). Short release → `addNoteToScale()`; long release → `removeNoteFromScale()`. All modifier-key actions (SHIFT, octave long-hold) still fire on press as before.
 
+### `handleOctaveButtons()`
+
+Manages both voltage range (window size) and window offset (window position). On normal short press: Octave Up increments `voltageRange` (max 4) and applies `windowOffset = min(windowOffset, 4 - voltageRange)` to push the window down if needed; Octave Down decrements `voltageRange` (min 1) with no offset change. On SHIFT + short press: Octave Up increments `windowOffset` only if `windowOffset + voltageRange < 4`; Octave Down decrements `windowOffset` only if `windowOffset > 0`. Both window shift actions call `rebuildNoteArray()` immediately. Long-hold (150ms+) activates save/load context — unchanged from v1.2.6.
+
 ### `saveStateToSlot(int slotAddress)` / `loadStateFromSlot(int slotAddress)`
 
-Save and restore the complete module state to a 12-byte EEPROM slot. Saved fields: signature (0xB1B1), shift register, step length, rotation offset, voltage range, reserved byte, pot ADC snapshot, packed scale. Address safety is validated via `isStateAddressSafe()` before any EEPROM access. Load validates the signature and field ranges before applying, resets `stepCounter` to 0, calls `unpackScale()` (which triggers `rebuildNoteArray()`), and arms pot pickup.
+Save and restore the complete module state to a 14-byte EEPROM slot. Saved fields: signature (`0xB3B3`), shift register, step length, rotation offset, voltage range, window offset, pot ADC snapshot, packed scale, slew pot ADC snapshot. Address safety is validated via `isStateAddressSafe()` before any EEPROM access. Load validates the signature and all field ranges (including `winOffset <= 3`) before applying. On load, `windowOffset` is clamped to `min(winOffset, 4 - volRange)` to enforce the invariant even if the stored value is edge-case corrupt. Resets `stepCounter` to 0, calls `unpackScale()` (which triggers `rebuildNoteArray()`), and arms pot pickup.
 
 ### `removeNoteFromScale(int noteIndex)`
 
@@ -162,19 +166,20 @@ Address Range   Contents                       Status
 
 Scales are stored as packed 16-bit values (one bit per chromatic note, bits 0–11). The signature `0xA5A5` at address 104 is checked before any scale load operation to prevent reading uninitialised EEPROM.
 
-State slots are 12 bytes each, laid out as follows:
+State slots are 14 bytes each, laid out as follows:
 
 ```
 Offset   Field            Type       Notes
 ──────   ───────────────  ─────────  ────────────────────────────
-+0–1     Signature        uint16_t   0xB1B1 — validates slot is written
++0–1     Signature        uint16_t   0xB3B3 — validates slot is written
 +2–3     Shift register   uint16_t   Raw 16-bit pattern
 +4       Step length      uint8_t    Valid: 3,4,5,6,8,12,16
 +5       Rotation offset  uint8_t    0–15 — chosen downbeat position
 +6       Voltage range    uint8_t    1–4 octaves
-+7       Reserved         uint8_t    0x00
++7       Window offset    uint8_t    0–3 — window bottom in whole volts
 +8–9     Pot snapshot     uint16_t   ADC value at save time (0–1023)
 +10–11   Packed scale     uint16_t   Same format as scale slots
++12–13   Slew snapshot    uint16_t   ADC value reconstructed from slewRate
 ```
 
 ---
@@ -257,4 +262,4 @@ Derivative firmware must be released under CC BY-NC-SA 4.0 with attribution to F
 
 ---
 
-*Shroud of Turing v1.2.6 — FlatSix Modular*
+*Shroud of Turing v1.2.7 — FlatSix Modular*

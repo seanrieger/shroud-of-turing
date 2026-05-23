@@ -4,6 +4,46 @@ All notable changes to the Shroud of Turing firmware are documented here.
 
 ---
 
+## v1.2.7 — May 2026
+
+### Added
+
+- **Voltage window shift** — Hold SHIFT and press Octave Up or Octave Down to
+  slide the output voltage window in 1V steps. The window is defined by a
+  `windowOffset` (0–3V) paired with the existing `voltageRange` (1–4 octaves).
+  A 1-octave window at offset 0 = C0–C1; at offset 1 = C1–C2, and so on.
+  Quantized output shifts by whole octaves through `calibrationValues[]`;
+  unquantized output shifts linearly. Window stops at boundaries (hard stop
+  at 0V and 4V — no compression logic).
+- **Push-down on range expansion** — When the voltage range is increased via
+  a normal Octave Up press, `windowOffset` is automatically clamped to
+  `min(windowOffset, 4 - voltageRange)` to keep the window top within 4V.
+- **Window offset persisted in state save/load** — `windowOffset` is stored
+  in the previously reserved byte (slot offset 7). State signature bumped to
+  `0xB3B3` to cleanly invalidate older slots. On load, offset is validated
+  (`winOffset <= 3`) and clamped to enforce the invariant.
+- **CV Keyboard mode unaffected** — Window shift is intentionally disabled
+  in CV Keyboard mode; it retains its own independent octave range logic.
+
+---
+
+## v1.2.6 — May 2026
+
+### Added
+
+- **Single note removal from scale** — Long-hold any note button for 800ms
+  to remove that note from the active quantization scale. Previously the only
+  way to remove notes was to clear the entire scale.
+- **Press → release architecture for note input** — `addNoteToScale()` now
+  fires on button release rather than press. This allows the same button to
+  distinguish between a short press (add) and a long hold (remove) without
+  ambiguity or accidental double-actions.
+- `NOTE_REMOVE_HOLD_TIME = 800` ms named constant for easy retuning.
+- Long-hold removal is blocked when Shift or either Octave long-hold is
+  active, preventing interference with save/load/scale-slot operations.
+
+---
+
 ## v1.2.5 — May 2026
 
 ### Added

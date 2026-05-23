@@ -1,11 +1,11 @@
 ![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-blue)
-![Version](https://img.shields.io/badge/version-1.2.6-green)
+![Version](https://img.shields.io/badge/version-1.2.7-green)
 ![Platform](https://img.shields.io/badge/platform-Arduino%20Nano-red)
 
 # Shroud of Turing
 
 **Turing Machine Inspired Random Sequencer with Musical Quantization & Sequence Manipulation Tools**  
-*Firmware v1.2.6 for the Nocturne Alchemy Platform*  
+*Firmware v1.2.7 for the Nocturne Alchemy Platform*  
 *FlatSix Modular*
 
 ---
@@ -31,6 +31,7 @@ Once you've found a pattern you love, the Shroud gives you hands-on tools to sha
 - 6 persistent scale save/recall slots (stored in EEPROM across power cycles)
 - **5 full state save/recall slots** — snapshot the complete module state (pattern, scale, rotation, range, slew) to any black key and restore it instantly
 - 1–4 octave voltage range (0–4V, calibrated 1V/octave)
+- **Voltage window shift** — hold SHIFT and press Octave Up/Down to slide the voltage window up or down in 1V steps; a 1-octave window at offset 2 produces C2–C3 rather than C0–C1; window position is saved and restored with full state
 - **Slew/portamento** — hold SHIFT and adjust the pot to dial in glide between notes; slew is saved and restored with full state
 - **Musical sequence rotation** — shift your locked pattern's starting note immediately, preserving the rotation across save/load and reset
 - Pattern manipulation: reset to chosen downbeat, rotate, clear bits, set bits
@@ -59,7 +60,7 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 ### Installation
 
 1. Download or clone this repository
-2. Open `firmware/ShroudOfTuring_v1_2_6_DEV/ShroudOfTuring_v1_2_6_DEV.ino` in the Arduino IDE
+2. Open `firmware/ShroudOfTuring_v1_2_7_DEV/ShroudOfTuring_v1_2_7_DEV.ino` in the Arduino IDE
 3. Select **Board:** Arduino Nano, **Processor:** ATmega328P (Old Bootloader)
 4. Ensure `DEBUG_MODE` is set to `false` (line ~50) for production use
 5. Upload to your module
@@ -115,6 +116,8 @@ you press or release SHIFT. Slew is saved and restored with full state.
 | Long-hold a note button (800ms) | Remove that note from scale  |
 | Octave Up           | Increase voltage range (1→2→3→4 octaves) |
 | Octave Down         | Decrease voltage range (4→3→2→1 octaves) |
+| SHIFT + Octave Up   | Slide voltage window up 1V (stop at top)  |
+| SHIFT + Octave Down | Slide voltage window down 1V (stop at 0V) |
 
 ### SHIFT Mode (Hold High C / Shift button ≥150ms)
 
@@ -195,14 +198,14 @@ shroud-of-turing/
 ├── CHANGELOG.md                           ← Version history
 │
 ├── firmware/
-│   ├── ShroudOfTuring_v1_2_6_DEV/
-│   │   ├── ShroudOfTuring_v1_2_6_DEV.ino  ← Main firmware (flash this)
+│   ├── ShroudOfTuring_v1_2_7_DEV/
+│   │   ├── ShroudOfTuring_v1_2_7_DEV.ino  ← Main firmware (flash this)
 │   │   ├── CalibrationMode.h
 │   │   ├── CalibrationMode.cpp
 │   │   ├── EEPROMHandling.h
 │   │   └── EEPROMHandling.cpp
-│   ├── ShroudOfTuring_v1_2_5_DEV/
-│   │   ├── ShroudOfTuring_v1_2_5_DEV.ino  ← Previous release
+│   ├── ShroudOfTuring_v1_2_6_DEV/
+│   │   ├── ShroudOfTuring_v1_2_6_DEV.ino  ← Previous release
 │   │   ├── CalibrationMode.h
 │   │   ├── CalibrationMode.cpp
 │   │   ├── EEPROMHandling.h
@@ -269,5 +272,5 @@ Please do not open GitHub issues for questions about building the hardware — t
 
 ---
 
-*Shroud of Turing v1.2.6 — FlatSix Modular — 2026*  
+*Shroud of Turing v1.2.7 — FlatSix Modular — 2026*  
 *Inspired by Tom Whitwell's Turing Machine MKII*

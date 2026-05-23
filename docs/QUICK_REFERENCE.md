@@ -1,4 +1,4 @@
-# Shroud of Turing v1.2.6 — Quick Reference
+# Shroud of Turing v1.2.7 — Quick Reference
 
 ---
 
@@ -56,6 +56,8 @@ Pot switches to **slew/portamento** control. Probability is frozen.
 | Any note button (hold 800ms)   | Remove that note from scale          |
 | Octave Up (short press)   | Increase voltage range (1→2→3→4 oct) |
 | Octave Down (short press) | Decrease voltage range (4→3→2→1 oct) |
+| SHIFT + Octave Up         | Slide window up 1V (stop at top)     |
+| SHIFT + Octave Down       | Slide window down 1V (stop at 0V)    |
 
 ---
 
@@ -75,11 +77,19 @@ Pot switches to **slew/portamento** control. Probability is frozen.
 | A           | Sequence length → 12 steps                    |
 | A#          | Rotate sequence forward one step              |
 | B           | Sequence length → 16 steps                    |
+| Octave Up   | Slide voltage window up 1V                    |
+| Octave Down | Slide voltage window down 1V                  |
 | Pot         | Adjust slew/portamento amount                 |
 
 > **Rotation** shifts which note plays first without changing the underlying pattern.
 > Only active in LOCKED or DOUBLE mode. Immediate — no clock pulse required.
 > Rotation is preserved when you save state and restored when you load it.
+>
+> **Voltage window shift:** SHIFT + Octave Up/Down slides the window in 1V steps.
+> A 1-octave window at offset 0 = C0–C1; offset 1 = C1–C2; offset 2 = C2–C3; offset 3 = C3–C4.
+> Window stops at boundaries — no action at top (offset + range = 4) or bottom (offset = 0).
+> Expanding the range pushes the window down if needed to keep the top within 4V.
+> Window position is saved and restored with full state.
 >
 > **Pot in SHIFT mode:** probability is frozen; pot controls slew.
 > Pickup protection prevents accidental jumps in both directions.
@@ -101,7 +111,7 @@ Slots: **D** = 1, **E** = 2, **F** = 3, **G** = 4, **A** = 5, **B** = 6
 ## State Save / Recall
 
 Saves and restores the complete module state: shift register pattern, sequence
-length, voltage range, scale, rotation offset, probability, and slew.
+length, voltage range, window offset, scale, rotation offset, probability, and slew.
 
 | Action                                           | Result                    |
 | ------------------------------------------------ | ------------------------- |
@@ -156,4 +166,4 @@ length, voltage range, scale, rotation offset, probability, and slew.
 
 ---
 
-*Shroud of Turing v1.2.6 — FlatSix Modular*
+*Shroud of Turing v1.2.7 — FlatSix Modular*
