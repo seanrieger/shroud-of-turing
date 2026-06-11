@@ -413,10 +413,32 @@ bool loadStateFromSlot(int slotAddress) {
     stepCounter        = 0;       // always start from step 0 on load
     unpackScale(scalePacked);     // also calls rebuildNoteArray()
 
-    // Reset lock/double state — let the pot re-establish on next updateProbability()
-    patternLocked = false;
-    patternDouble = false;
+    // Restore lock/double state from the saved pot snapshot (v1.2.7 fix).
+    // Previously these were always reset to false, leaving patternLocked/patternDouble
+    // unset until the pickup guard cleared and updateProbability() ran — meaning
+    // reset (Shift+C#) did nothing immediately after a load even if the state was
+    // saved in LOCKED or DOUBLE mode. Now we infer the mode from potSnap directly,
+    // mirroring the same threshold logic used in updateProbability(), so the pattern
+    // is fully live the moment the state is applied.
+    patternLocked  = false;
+    patternDouble  = false;
     noteArrayValid = false;
+    if (potSnap <= POT_DOUBLE_MAX) {
+        // Saved in DOUBLE mode
+        doublePattern = shiftRegister;
+        patternDouble = true;
+        doubleLengthMode = true;
+        rebuildNoteArray();
+    } else if (potSnap >= POT_LOCKED_MIN) {
+        // Saved in LOCKED mode
+        lockedPattern = shiftRegister;
+        patternLocked = true;
+        doubleLengthMode = false;
+        rebuildNoteArray();
+    } else {
+        // Saved in random/variable mode — no pattern to lock, stays false
+        doubleLengthMode = false;
+    }
 
     // Restore rotation offset (saved in pad byte, valid range 0-15)
     rotationOffset = (pad < 16) ? (int)pad : 0;
