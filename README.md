@@ -1,11 +1,11 @@
 ![License](https://img.shields.io/badge/license-CC%20BY--NC%204.0-blue)
-![Version](https://img.shields.io/badge/version-1.2.0-green)
+![Version](https://img.shields.io/badge/version-1.2.7-green)
 ![Platform](https://img.shields.io/badge/platform-Arduino%20Nano-red)
 
 # Shroud of Turing
 
 **Turing Machine Inspired Random Sequencer with Musical Quantization & Sequence Manipulation Tools**  
-*Firmware v1.2.0 for the Nocturne Alchemy Platform*  
+*Firmware v1.2.7 for the Nocturne Alchemy Platform*  
 *FlatSix Modular*
 
 ---
@@ -27,10 +27,14 @@ Once you've found a pattern you love, the Shroud gives you hands-on tools to sha
 
 - 16-bit shift register with probability control — from locked loop to total randomness
 - Variable sequence length: 3, 4, 5, 6, 8, 12, or 16 steps
-- Live scale building: press notes on the button matrix to define a quantization scale
+- Live scale building: press notes on the button matrix to define a quantization scale; long-hold any note (800ms) to remove it individually
 - 6 persistent scale save/recall slots (stored in EEPROM across power cycles)
+- **5 full state save/recall slots** — snapshot the complete module state (pattern, scale, rotation, range, window, slew) to any black key and restore it instantly
 - 1–4 octave voltage range (0–4V, calibrated 1V/octave)
-- Pattern manipulation: reset, rotate, clear bits, set bits
+- **Voltage window shift** — hold SHIFT and press Octave Up/Down to slide the voltage window up or down in 1V steps; a 1-octave window at offset 2 produces C2–C3 rather than C0–C1; window position is saved and restored with full state
+- **Slew/portamento** — hold SHIFT and adjust the pot to dial in glide between notes; slew is saved and restored with full state
+- **Musical sequence rotation** — shift your locked pattern's starting note immediately, preserving the rotation across save/load and reset
+- Pattern manipulation: reset to chosen downbeat, rotate, clear bits, set bits
 - CV Keyboard mode: play notes directly from the button matrix with portamento
 - Three boot modes: Turing Machine, CV Keyboard, Calibration
 
@@ -56,7 +60,7 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 ### Installation
 
 1. Download or clone this repository
-2. Open `firmware/ShroudOfTuring_v1_2_0.ino` in the Arduino IDE
+2. Open `firmware/ShroudOfTuring_v1_2_7/ShroudOfTuring_v1_2_7.ino` in the Arduino IDE
 3. Select **Board:** Arduino Nano, **Processor:** ATmega328P (Old Bootloader)
 4. Ensure `DEBUG_MODE` is set to `false` (line ~50) for production use
 5. Upload to your module
@@ -77,6 +81,8 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 
 ### Potentiometer
 
+**Normal operation:**
+
 ```
 7 o'clock ────────────── 12 o'clock ────────────── 5 o'clock
  DOUBLE        SLIP          RANDOM        SLIP        LOCKED
@@ -91,30 +97,45 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 | 1–4 o'clock  | SLIP   | Pattern slowly evolves                          |
 | 5 o'clock    | LOCKED | Perfect repeating loop — 0% change              |
 
+**While SHIFT is held — pot controls slew/portamento:**
+
+```
+7 o'clock ──────────────────────────────────────── 5 o'clock
+  No slew                                         Max slew
+ (instant)                                      (long glide)
+```
+
+Pickup protection is active in both directions — the value won't jump when
+you press or release SHIFT. Slew is saved and restored with full state.
+
 ### Buttons
 
 | Action              | Result                                   |
 | ------------------- | ---------------------------------------- |
 | Press a note button | Add note to quantization scale           |
+| Long-hold a note button (800ms) | Remove that note from scale  |
 | Octave Up           | Increase voltage range (1→2→3→4 octaves) |
 | Octave Down         | Decrease voltage range (4→3→2→1 octaves) |
+| SHIFT + Octave Up   | Slide voltage window up 1V (stop at top)  |
+| SHIFT + Octave Down | Slide voltage window down 1V (stop at 0V) |
 
 ### SHIFT Mode (Hold High C / Shift button ≥150ms)
 
 | Combination | Result                                             |
 | ----------- | -------------------------------------------------- |
 | SHIFT + C   | Set sequence length to 3 steps                     |
-| SHIFT + C#  | Reset pattern to first note (LOCKED / DOUBLE only) |
+| SHIFT + C#  | Reset to chosen downbeat (LOCKED / DOUBLE only)    |
 | SHIFT + D   | Set sequence length to 4 steps                     |
 | SHIFT + D#  | Clear current bit (force to 0)                     |
 | SHIFT + E   | Set sequence length to 5 steps                     |
 | SHIFT + F   | Set sequence length to 6 steps                     |
 | SHIFT + F#  | Set current bit (force to 1)                       |
 | SHIFT + G   | Set sequence length to 8 steps (default)           |
-| SHIFT + G#  | Rotate pattern backward one step                   |
+| SHIFT + G#  | Rotate sequence backward one step                  |
 | SHIFT + A   | Set sequence length to 12 steps                    |
-| SHIFT + A#  | Rotate pattern forward one step                    |
+| SHIFT + A#  | Rotate sequence forward one step                   |
 | SHIFT + B   | Set sequence length to 16 steps                    |
+| SHIFT + Pot | Adjust slew/portamento amount                      |
 
 ### Scale Save / Recall
 
@@ -123,6 +144,31 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 | Long hold Octave Down + D/E/F/G/A/B | Save current scale to slot |
 | Long hold Octave Up + D/E/F/G/A/B   | Load scale from slot       |
 | Long hold Octave Up + C             | Clear current scale        |
+
+### State Save / Recall
+
+Saves and restores the complete module state: pattern, scale, sequence length, voltage range, rotation offset, probability, and slew.
+
+> Save captures what you're **hearing**, not the physical pot position. If pickup
+> is active at save time, the effective probability is saved rather than the
+> knob's physical location. Slew is always saved exactly as set.
+
+| Action                                | Result                    |
+| ------------------------------------- | ------------------------- |
+| Long hold Octave Down + C#/D#/F#/G#/A# | Save full state to slot  |
+| Long hold Octave Up + C#/D#/F#/G#/A#  | Load full state from slot |
+
+| Black Key | Slot |
+| --------- | ---- |
+| C#        | 1    |
+| D#        | 2    |
+| F#        | 3    |
+| G#        | 4    |
+| A#        | 5    |
+
+> After a load, the pot is ignored for probability until it moves deliberately
+> (~30 ADC counts) from its position at load time. Slew is restored directly
+> with no pickup needed — it stays frozen until you next hold SHIFT.
 
 ---
 
@@ -152,7 +198,37 @@ shroud-of-turing/
 ├── CHANGELOG.md                           ← Version history
 │
 ├── firmware/
-│   ├── ShroudOfTuring_v1_2_0.ino         ← Main firmware (flash this)
+│   ├── ShroudOfTuring_v1_2_7/
+│   │   ├── ShroudOfTuring_v1_2_7.ino      ← Release firmware (flash this)
+│   │   ├── CalibrationMode.h
+│   │   ├── CalibrationMode.cpp
+│   │   ├── EEPROMHandling.h
+│   │   └── EEPROMHandling.cpp
+│   ├── ShroudOfTuring_v1_2_7_DEV/
+│   │   ├── ShroudOfTuring_v1_2_7_DEV.ino  ← Development build
+│   │   ├── CalibrationMode.h
+│   │   ├── CalibrationMode.cpp
+│   │   ├── EEPROMHandling.h
+│   │   └── EEPROMHandling.cpp
+│   ├── ShroudOfTuring_v1_2_6_DEV/
+│   │   ├── ShroudOfTuring_v1_2_6_DEV.ino  ← Previous release
+│   │   ├── CalibrationMode.h
+│   │   ├── CalibrationMode.cpp
+│   │   ├── EEPROMHandling.h
+│   │   └── EEPROMHandling.cpp
+│   ├── ShroudOfTuring_v1_2_5_DEV/
+│   │   ├── ShroudOfTuring_v1_2_5_DEV.ino
+│   │   ├── CalibrationMode.h
+│   │   ├── CalibrationMode.cpp
+│   │   ├── EEPROMHandling.h
+│   │   └── EEPROMHandling.cpp
+│   ├── ShroudOfTuring_v1_2_4_DEV/
+│   │   ├── ShroudOfTuring_v1_2_4_DEV.ino
+│   │   ├── CalibrationMode.h
+│   │   ├── CalibrationMode.cpp
+│   │   ├── EEPROMHandling.h
+│   │   └── EEPROMHandling.cpp
+│   ├── ShroudOfTuring_v1_2_0.ino         ← Original v1.2.0 release
 │   └── shared_libraries/
 │       ├── README_SHARED_LIBRARIES.md     ← Read before touching
 │       ├── CalibrationMode.h
@@ -199,7 +275,8 @@ The shared platform libraries (`CalibrationMode`, `EEPROMHandling`) are included
 **Original Turing Machine concept:** Tom Whitwell / Music Thing Modular  
 **Nocturne Alchemy Platform:** FlatSix Modular  
 **Firmware development:** FlatSix Modular  
-**Reference implementation:** Ornament & Crime Hemisphere Suite (Jason Justian)
+**Reference implementation:** Ornament & Crime Hemisphere Suite (Jason Justian)  
+**State Save / Recall concept:** Beni Rose
 
 ---
 
@@ -213,5 +290,5 @@ Please do not open GitHub issues for questions about building the hardware — t
 
 ---
 
-*Shroud of Turing v1.2.0 — FlatSix Modular — 2026  
+*Shroud of Turing v1.2.7 — FlatSix Modular — 2026*  
 *Inspired by Tom Whitwell's Turing Machine MKII*
