@@ -60,7 +60,7 @@ This firmware runs on the **Nocturne Alchemy Platform** by FlatSix Modular — a
 ### Installation
 
 1. Download or clone this repository
-2. Open `firmware/ShroudOfTuring_v1_2_7_DEV/ShroudOfTuring_v1_2_7_DEV.ino` in the Arduino IDE
+2. Open `firmware/ShroudOfTuring_v1_2_7/ShroudOfTuring_v1_2_7.ino` in the Arduino IDE
 3. Select **Board:** Arduino Nano, **Processor:** ATmega328P (Old Bootloader)
 4. Ensure `DEBUG_MODE` is set to `false` (line ~50) for production use
 5. Upload to your module
@@ -198,8 +198,14 @@ shroud-of-turing/
 ├── CHANGELOG.md                           ← Version history
 │
 ├── firmware/
+│   ├── ShroudOfTuring_v1_2_7/
+│   │   ├── ShroudOfTuring_v1_2_7.ino      ← Release firmware (flash this)
+│   │   ├── CalibrationMode.h
+│   │   ├── CalibrationMode.cpp
+│   │   ├── EEPROMHandling.h
+│   │   └── EEPROMHandling.cpp
 │   ├── ShroudOfTuring_v1_2_7_DEV/
-│   │   ├── ShroudOfTuring_v1_2_7_DEV.ino  ← Main firmware (flash this)
+│   │   ├── ShroudOfTuring_v1_2_7_DEV.ino  ← Development build
 │   │   ├── CalibrationMode.h
 │   │   ├── CalibrationMode.cpp
 │   │   ├── EEPROMHandling.h
